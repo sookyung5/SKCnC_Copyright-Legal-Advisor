@@ -12,15 +12,9 @@ from langchain.schema import SystemMessage, HumanMessage
 
 from config.settings import settings
 from utils.logger import log
+from .preprocessor import is_nan_value
 
 
-def is_nan_value(value) -> bool:
-    """NaN 값 검증"""
-    if pd.isna(value):
-        return True
-    if isinstance(value, str) and value.lower() in ['nan', '<na>', 'none']:
-        return True
-    return False
 
 
 def validate_generated_content(content: str) -> Tuple[bool, str]:
@@ -158,8 +152,10 @@ class MissingDataHandler:
             log.info("결측치 없음")
             return df
         
-        # 결과 저장용 데이터프레임
-        result_df = missing_df.copy()
+        # 결과 저장용 리스트
+        holdings = []
+        summaries = []
+        indices = []
         
         # 각 행에 대해 판시사항/판결요지 생성
         success_count = 0
@@ -173,9 +169,10 @@ class MissingDataHandler:
             try:
                 holding, summary = self.generate_summary(row['판례내용'])
                 
-                result_df.at[idx, '판시사항'] = holding
-                result_df.at[idx, '판결요지'] = summary
-                
+                indices.append(idx)
+                holdings.append(holding)
+                summaries.append(summary)
+            
                 # 검증
                 if "오류" not in holding and "오류" not in summary:
                     success_count += 1
@@ -191,6 +188,10 @@ class MissingDataHandler:
         
         log.info(f"생성 완료: 성공 {success_count}개, 오류 {error_count}개")
         
+        result_df = missing_df.copy()
+        result_df.loc[indices, '판시사항'] = holdings
+        result_df.loc[indices, '판결요지'] = summaries
+
         # 원본 데이터와 병합
         merged_df = self.merge_with_original(df, result_df)
         
@@ -217,31 +218,27 @@ class MissingDataHandler:
         """
         key_col = '판례일련번호'
         
-        # 병합할 컬럼 선택
-        filled_subset = filled_df[[key_col, '판시사항', '판결요지']]
-        
+        # 병합할 컬럼 선택 (생성된 데이터만)
+        filled_subset = filled_df[[key_col, '판시사항', '판결요지']].copy()
+        filled_subset.columns = [key_col, '판시사항_generated', '판결요지_generated']
+
         # LEFT JOIN
         merged_df = original_df.merge(
             filled_subset, 
             on=key_col, 
-            how='left',
-            suffixes=('_original', '_generated')
-        )
+            how='left',        )
         
         # 규칙 기반 결측치 채우기
-        merged_df['판시사항'] = merged_df['판시사항_original'].fillna(
+        merged_df['판시사항'] = merged_df['판시사항'].fillna(
             merged_df['판시사항_generated']
         )
-        merged_df['판결요지'] = merged_df['판결요지_original'].fillna(
+        merged_df['판결요지'] = merged_df['판결요지'].fillna(
             merged_df['판결요지_generated']
         )
         
         # 임시 컬럼 제거
         merged_df = merged_df.drop(
-            columns=[
-                '판시사항_original', '판시사항_generated',
-                '판결요지_original', '판결요지_generated'
-            ]
+            columns=['판시사항_generated','판결요지_generated']
         )
         
         generated_count = (
