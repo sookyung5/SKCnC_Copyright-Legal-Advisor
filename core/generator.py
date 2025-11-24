@@ -3,6 +3,7 @@
 답변 생성 모듈
 LLM을 사용한 답변 생성
 """
+from curses import meta
 from typing import List
 from langchain.schema import Document
 from langchain.chat_models import ChatOpenAI
@@ -121,15 +122,75 @@ class AnswerGenerator:
                 metadata.get('문서유형', 'unknown')
             )
             
-            # 메타데이터 포멧팅
+            # 문서 타입별 헤더 
             if doc_type in ['case', '판례']:
-                header = f"[판례 {i}] {metadata.get('사건번호', 'N/A')} ({metadata.get('선고일자', 'N/A')})"
+                # 판례
+                case_num = metadata.get('사건번호', 'N/A')
+                decision_date = metadata.get('선고일자', 'N/A')
+                court = metadata.get('법원명', '')
+
+                header = f"[판례 {i}] {court} {decision_date} 선고 {case_num} 판결"
+            elif doc_type in ['law', '법령']:
+                # 조문
+                article_num = metadata.get('조문번호', '')
+                article_title = metadata.get('조문제목', '')
+                included_hangs = metadata.get('포함항', [])
+                included_hos = metadata.get('포함호', [])
+
+                header = f"[법령 {i}] 저작권법 제{article_num}조"
+                if article_title:
+                    header += f" ({article_title})"
+
+                if included_hangs:
+                    header += f" 제{','.join(included_hangs)}항"
+                
+                if included_hos:
+                    header += f" {','.join(included_hos)}호"
+            
+            elif doc_type in ['addendum', '부칙']:
+                # 부칙
+                pub_num = metadata.get('공포번호', '')
+                law_title = metadata.get('법률제목', '저작권법')
+                article_num = metadata.get('부칙_조문번호', '')
+                article_title = metadata.get('부칙_조문제목', '')
+                included_hangs = metadata.get('포함항', [])
+                included_hos = metadata.get('포함호', [])
+                
+                header = f"[부칙 {i}] 법률 제{pub_num}호 {law_title} 부칙 제{article_num}조"
+                if article_title:
+                    header += f" ({article_title})"
+                
+                if included_hangs:
+                    header += f" 제{','.join(included_hangs)}항"
+                
+                if included_hos:
+                    header += f" {','.join(included_hos)}호"
+                
+            elif doc_type in ['enforcement_decree', '시행령']:
+                # 시행령
+                article_num = metadata.get('시행령_조문번호', '')
+                article_title = metadata.get('시행령_조문제목', '')
+                included_hangs = metadata.get('포함항', [])
+                included_hos = metadata.get('포함호', [])
+                
+                header = f"[시행령 {i}] 저작권법 시행령 제{article_num}조"
+                if article_title:
+                    header += f" ({article_title})"
+                
+                if included_hangs:
+                    header += f" 제{','.join(included_hangs)}항"
+                
+                if included_hos:
+                    header += f" {','.join(included_hos)}호"
+                    
             else:
-                header = f"[법령 {i}] {metadata.get('조문', 'N/A')}"
+                # 기타
+                header = f"[문서 {i}]"
 
             formatted.append(f"{header}\n{content}\n")
 
         return "\n".join(formatted)
+
 
 class RelatedQuestionGenerator:
     """연관 질문 생성기"""
