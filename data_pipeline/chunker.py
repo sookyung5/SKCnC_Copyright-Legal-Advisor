@@ -156,17 +156,17 @@ def chunk_case_documents(df: pd.DataFrame) -> List[Document]:
         content_parts = []
         
         # 판시사항 추가
-        판시사항 = getattr("판시사항", None)
+        판시사항 = getattr(row, "판시사항", None)
         if not is_nan_value(판시사항):
             content_parts.append(f"【판시사항】\n{clean_text(판시사항)}")
         
         # 판결요지 추가
-        판결요지 = getattr("판결요지", None)
+        판결요지 = getattr(row, "판결요지", None)
         if not is_nan_value(판결요지):
             content_parts.append(f"【판결요지】\n{clean_text(판결요지)}")
         
         # 판례내용 추가
-        판례내용 = getattr("판례내용", None)
+        판례내용 = getattr(row, "판례내용", None)
         if content_parts and not is_nan_value(판례내용):
             content_parts.append(f"【판례내용】\n{clean_text(판례내용)}")
         
@@ -181,7 +181,7 @@ def chunk_case_documents(df: pd.DataFrame) -> List[Document]:
         try:
             chunks = text_splitter.split_text(combined_content)
         # 빈 청크 제거
-            chunks = [c.strip() for c in chunks if c.cstrip()]
+            chunks = [c.strip() for c in chunks if c.strip()]
         except Exception as e:
             log.error(f"{doc_id} 청킹 오류: {str(e)}", exc_info=True)
             continue
@@ -254,7 +254,7 @@ def chunk_law_documents(df: pd.DataFrame) -> List[Document]:
     Returns:
         Document 리스트
     """
-    log.info(f"법령 청킹 시작: {len(df)개 행}")
+    log.info(f"법령 청킹 시작: {len(df)}개 행")
 
     # 조문 단위 문서 생성
     log.info("[1/2] 조문 단위 문서 생성중...")
@@ -332,6 +332,9 @@ def _create_law_article_documents(df: pd.DataFrame) -> List[Document]:
             # 호
             ho_num = clean_text(getattr(row, '호번호', ''))
             ho_content = clean_text(getattr(row, '호내용', ''))
+            if ho_num:
+                included_hos.append(ho_num)
+
             if ho_content:
                 if ho_num:
                     if re.match(r'^\d+의\d+$', ho_num):
@@ -347,7 +350,7 @@ def _create_law_article_documents(df: pd.DataFrame) -> List[Document]:
             mok_content = clean_text(getattr(row, '목내용', ''))
             if mok_content:
                 if mok_num:
-                    row_parts.append(f"    {mok_num}목" {mok_content})
+                    row_parts.append(f"    {mok_num}목 {mok_content}")
                 else:
                     row_parts.append(f"    {mok_content}")
 
@@ -369,9 +372,9 @@ def _create_law_article_documents(df: pd.DataFrame) -> List[Document]:
             metadata["조문제목"] = article_title
         
         if included_hangs:
-            metadata["포함항"] = sorted(list(included_hangs))
+            metadata["포함항"] = extract_unique_sorted(list(included_hangs))
         if included_hos:
-            metadata["포함호"] = sorted(list(included_hos))
+            metadata["포함호"] = extract_unique_sorted(list(included_hos))
         
         doc = Document(page_content=content.strip(), metadata=metadata)
         article_docs.append(doc)
@@ -461,7 +464,7 @@ def chunk_addendum_documents(df: pd.DataFrame) -> List[Document]:
     """
     부칙 문서 청킹 (조문 단위 통합 + 적응형)
     
-    전략:
+    방법:
         1. 부칙 조문별로 모든 행 통합
         2. chunk_size 이하: 그대로 유지
         3. chunk_size 초과: 청킹 적용
@@ -538,6 +541,10 @@ def _create_addendum_article_documents(df: pd.DataFrame) -> List[Document]:
         if article_content:
             content_parts.append(article_content)
         
+        # 항/호 정보 수집
+        included_hangs = []
+        included_hos = []
+
         # 각 행의 항/호 내용 추가
         for row in rows:
             row_parts = []
@@ -545,6 +552,9 @@ def _create_addendum_article_documents(df: pd.DataFrame) -> List[Document]:
             # 항
             hang_num = clean_text(getattr(row, '항번호', ''))
             hang_content = clean_text(getattr(row, '항내용', ''))
+            if hang_num:
+                included_hangs.append(hang_num)
+            
             if hang_content:
                 if hang_num:
                     row_parts.append(f"  제{hang_num}항 {hang_content}")
@@ -554,6 +564,9 @@ def _create_addendum_article_documents(df: pd.DataFrame) -> List[Document]:
             # 호
             ho_num = clean_text(getattr(row, '호번호', ''))
             ho_content = clean_text(getattr(row, '호내용', ''))
+            if ho_num:
+                included_hos.append(ho_num)
+            
             if ho_content:
                 if ho_num:
                     row_parts.append(f"    {ho_num}호 {ho_content}")
@@ -581,6 +594,11 @@ def _create_addendum_article_documents(df: pd.DataFrame) -> List[Document]:
         if article_title:
             metadata["부칙_조문제목"] = article_title
         
+        if included_hangs:
+            metadata["포함항"] = extract_unique_sorted(included_hangs)
+        if included_hos:
+            metadata["포함호"] = extract_unique_sorted(included_hos)
+
         doc = Document(page_content=content.strip(), metadata=metadata)
         article_docs.append(doc)
     
@@ -670,7 +688,7 @@ def chunk_enforcement_documents(df: pd.DataFrame) -> List[Document]:
     """
     시행령 문서 청킹 (조문 단위 통합 + 적응형)
     
-    전략:
+    방법:
         1. 시행령 조문별로 모든 행 통합
         2. chunk_size 이하: 그대로 유지
         3. chunk_size 초과: 청킹 적용
@@ -735,6 +753,10 @@ def _create_enforcement_article_documents(df: pd.DataFrame) -> List[Document]:
         if article_content:
             content_parts.append(article_content)
         
+        # 항/호 정보 수집
+        included_hangs = []
+        included_hos = []
+
         # 각 행의 항/호/목 내용 추가
         for row in rows:
             row_parts = []
@@ -742,6 +764,9 @@ def _create_enforcement_article_documents(df: pd.DataFrame) -> List[Document]:
             # 항
             hang_num = clean_text(getattr(row, '항번호', ''))
             hang_content = clean_text(getattr(row, '항내용', ''))
+            if hang_num:
+                included_hangs.append(hang_num)
+            
             if hang_content:
                 if hang_num:
                     row_parts.append(f"  제{hang_num}항 {hang_content}")
@@ -751,6 +776,9 @@ def _create_enforcement_article_documents(df: pd.DataFrame) -> List[Document]:
             # 호
             ho_num = clean_text(getattr(row, '호번호', ''))
             ho_content = clean_text(getattr(row, '호내용', ''))
+            if ho_num:
+                included_hos.append(ho_num)
+
             if ho_content:
                 if ho_num:
                     row_parts.append(f"    {ho_num}호 {ho_content}")
@@ -782,6 +810,10 @@ def _create_enforcement_article_documents(df: pd.DataFrame) -> List[Document]:
         
         if article_title:
             metadata["시행령_조문제목"] = article_title
+        if included_hangs:
+            metadata["포함항"] = extract_unique_sorted(included_hangs)
+        if included_hos:
+            metadata["포함호"] = extract_unique_sorted(included_hos)
         
         doc = Document(page_content=content.strip(), metadata=metadata)
         article_docs.append(doc)
