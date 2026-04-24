@@ -7,7 +7,7 @@ from typing import List
 from pathlib import Path
 from tqdm import tqdm
 from langchain.schema import Document
-from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.vectorstores.utils import DistanceStrategy
 

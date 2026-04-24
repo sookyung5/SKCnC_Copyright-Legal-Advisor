@@ -5,7 +5,7 @@
 """
 from typing import Optional
 from dataclasses import dataclass
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 
 from config import settings

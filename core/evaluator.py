@@ -6,7 +6,7 @@ RAGAS를 사용한 답변 평가
 from typing import List
 from dataclasses import dataclass
 from langchain.schema import Document
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from ragas import evaluate
 from ragas.metrics import faithfulness, answer_relevancy
 from ragas.llms import LangchainLLMWrapper

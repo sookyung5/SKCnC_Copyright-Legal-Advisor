@@ -1,12 +1,13 @@
 # LangChain 및 관련 패키지
 langchain==0.1.0
 langchain-openai==0.0.2
+langchain-community==0.0.20
 
 # OpenAI
 openai==1.6.1
 
 # 벡터 데이터베이스
-faiss-cpu==1.7.4
+faiss-cpu>=1.7.4
 
 # 평가
 ragas==0.1.0
@@ -28,3 +29,4 @@ streamlit==1.29.0
 
 # 유틸리티
 tqdm==4.66.1
+logru==0.7.3

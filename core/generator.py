@@ -6,7 +6,7 @@ LLM을 사용한 답변 생성
 from curses import meta
 from typing import List
 from langchain.schema import Document
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 
 from config import settings

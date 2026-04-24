@@ -7,7 +7,7 @@ import time
 import pandas as pd
 from typing import Tuple
 from tqdm import tqdm
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
 
 from config.settings import settings
