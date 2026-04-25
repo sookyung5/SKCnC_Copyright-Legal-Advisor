@@ -87,7 +87,7 @@ faithfulness < 0.1 OR (faithfulness < 0.5 AND relevancy < 0.7)
                          ↓
               ┌──────────────────────┐
               │   4. 리랭킹            │
-              │   (Jina AI)          │
+              │   (Voyage AI)        │
               └──────────────────────┘
                          ↓
               ┌──────────────────────┐
@@ -192,7 +192,7 @@ def is_fallback(evaluation):
     )
 ```
 
-### 재시도 통계 (실측 데이터)
+### 재시도 통계 (예시)
 
 | 재시도 횟수 | 비율 | 누적 통과율 |
 |-------------|------|-------------|
@@ -379,7 +379,7 @@ def intent_analysis(query):
 
 ### 모델 정보
 
-- **모델명**: `jina-reranker-v2-base-multilingual`
+- **모델명**: `rerank-2.5`
 - **입력**: 질문 + 문서 쌍
 - **출력**: 관련도 점수 (0.0 ~ 1.0)
 - **처리속도**: 평균 0.8초 (10개 문서 기준)
@@ -388,37 +388,27 @@ def intent_analysis(query):
 
 ```python
 def rerank(query, documents, top_k=5):
-    """Jina AI 리랭킹"""
+    """Voyage AI 리랭킹"""
     
-    # 1. API 호출
-    response = requests.post(
-        url="https://api.jina.ai/v1/rerank",
-        headers={
-            "Authorization": f"Bearer {JINA_API_KEY}",
-            "Content-Type": "application/json"
-        },
-        json={
-            "model": "jina-reranker-v2-base-multilingual",
-            "query": query,
-            "documents": [doc.page_content for doc in documents],
-            "top_n": top_k
-        }
+    # 1. Voyage 클라이언트 초기화
+    client = voyageai.Client(api_key=VOYAGE_API_KEY)
+
+    # 2. API 호출
+    result = client.rerank(
+        query=query,
+        documents=[doc.page_content for doc in documents],
+        model="rerank-2.5",
+        top_k=top_k
     )
-    
-    # 2. 점수 파싱
-    results = response.json()['results']
     
     # 3. 재정렬
     reranked_documents = [
         {
-            'document': documents[r['index']],
-            'relevance_score': r['relevance_score']
+            'document': documents[item.index],
+            'relevance_score': item.relevance_score
         }
-        for r in results
+        for item in result.results
     ]
-    
-    # 4. 점수 순 정렬
-    reranked_documents.sort(key=lambda x: x['relevance_score'], reverse=True)
     
     return [r['document'] for r in reranked_documents]
 ```
@@ -435,7 +425,7 @@ def rerank(query, documents, top_k=5):
 | 4 | 저작인격권 관련 | 0.85 |
 | 5 | 저작권 등록 절차 | 0.83 |
 
-#### 리랭킹 결과 (Jina AI)
+#### 리랭킹 결과 (Voyage AI)
 
 | 순위 | 문서 | 관련도 점수 |
 |------|------|-------------|
@@ -817,7 +807,7 @@ def confidence_check(evaluation):
 
 요청별 타이밍·비용·점수·k 값 등 운영 지표를 수집해 병목과 비용 급증을 조기 경보합니다. 핵심 지표는 대시보드로 상시 관리합니다.
 
-### 로깅 데이터
+### 로깅 데이터 (예시)
 
 ```python
 log_data = {
@@ -842,7 +832,7 @@ log_data = {
     },
     "costs": {
         "openai": 0.025,
-        "jina": 0.003,
+        "voyage": 0.003,
         "total": 0.028
     }
 }

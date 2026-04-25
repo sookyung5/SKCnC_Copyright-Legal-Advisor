@@ -18,8 +18,7 @@
 - [8. 사용 방법](#사용-방법)
 - [9. 추가 문서](#추가-문서)
 - [10. 문제 해결](#문제-해결)
-- [11. 성능 지표](#성능-지표)
-- [12. 기여 방법](#기여-방법)
+- [11. 기여 방법](#기여-방법)
 
 ---
 
@@ -40,6 +39,7 @@
 **주요 업무**
 - 저작권법 관련 **판례 데이터 크롤링**
 - 법제처 API 기반 **법령 데이터 수집**
+- 판례 데이터 **결측값 처리**
 
 
 #### 🧠 **모델 고도화·엔지니어링팀**
@@ -74,7 +74,7 @@
 - **지능형 검색 전략**: 질의 의도 분석 → 맞춤형 Retrieval & Rerank
 - **평가 기반 재시도 로직**: RAGAS 평가를 통한 답변 품질 보장 
 - **동적 검색 전략**: 재시도마다 검색 범위를 점진적으로 확대 (10→15→20)
-- **Jina AI 리랭킹**: 검색 결과의 관련도 재정렬로 정밀도 향상
+- **Voyage AI 리랭킹**: 검색 결과의 관련도 재정렬로 정밀도 향상
 - **환각 억제 설계**: 근거(조문번호·판례번호) 없는 응답은 “불확실”로 표시
 
 
@@ -115,17 +115,17 @@
 ### 3. 검색된 문서 리랭킹
 
 ```python
-검색 결과 (10~20개) → Jina Reranker → 상위 5개 선택
+검색 결과 (10~20개) → Voyage Reranker → 상위 5개 선택
 ```
 
-- **모델**: `jina-reranker-v2-base-multilingual`
+- **모델**: `rerank-2.5`
 - **효과**: 검색 정밀도 20-30% 향상
 - **처리시간**: 평균 0.8초
 
 ### 4. 의도 분석
 
 ```python
-사용자 질문 → GPT-4-turbo 분석 → {is_related, key_concepts, search_terms}
+사용자 질문 → LLM 의도 분석 → {is_related, key_concepts, search_terms}
 ```
 
 - 저작권법 무관 질문 조기 차단
@@ -147,8 +147,8 @@ graph TD
     
     E --> F[멀티쿼리 생성]
     F --> G[벡터 검색]
-    G --> H[Jina 리랭킹]
-    H --> I[GPT-4 답변 생성]
+    G --> H[Voyage 리랭킹]
+    H --> I[답변 생성]
     I --> J[RAGAS 평가]
     
     J --> K{평가 통과?}
@@ -164,7 +164,7 @@ graph TD
 ### 단계별 설명
 
 #### 1. 의도 분석 (Intent Analysis)
-- GPT-4-turbo를 사용하여 질문의 의도 파악
+- LLM(OpenAI API) 호출 후 질문의 의도 파악
 - 저작권법 관련성 판단
 - 핵심 개념 및 검색어 추출
 
@@ -174,12 +174,12 @@ graph TD
 - 멀티쿼리 생성으로 다각도 검색
 
 #### 3. 리랭킹 (Reranking)
-- Jina Reranker로 검색 결과 재정렬
+- Voyage Reranker로 검색 결과 재정렬
 - 의미적 관련도 기준 상위 5개 선택
 - 검색 정밀도 향상
 
 #### 4. 답변 생성 (Generation)
-- GPT-4-turbo로 법률 전문 답변 생성
+- 법률 전문 답변 생성
 - 검색된 문서를 컨텍스트로 활용
 - 출처 명시 및 법령 조문 인용
 
@@ -196,9 +196,10 @@ graph TD
 
 | 기술 | 버전 | 용도 |
 |------|------|------|
-| **OpenAI GPT-4-turbo** | Latest | 질의 의도 분석 및 답변 생성 |
+| **OpenAI GPT-4o** | Latest | 질의 의도 분석 |
 | **OpenAI text-embedding-3-large** | Latest | 텍스트 임베딩 |
-| **Jina AI Reranker** | v2-base-multilingual | 검색 결과 재정렬 |
+| **Voyage Reranker** | Latest | 검색 결과 재정렬 |
+| **OpenAI GPT-4-turbo** | 0.1+ | 답변 생성 |
 | **RAGAS** | 0.1+ | LLM 답변 정확도 평가 |
 
 ### 데이터 & 검색
@@ -235,8 +236,8 @@ graph TD
 └─────────────────────────────────────────────────────┘
                         ↓
 ┌──────────────────┬──────────────────┬───────────────┐
-│   Intent Layer   │  Retrieval Layer │ Generation    │
-│   (GPT-4-turbo)  │  (FAISS + Jina)  │ (GPT-4-turbo) │
+│   Intent Layer   │  Retrieval Layer │  Generation   │
+│      (LLM)       │ (FAISS + Voyage) │    (LLM)      │
 └──────────────────┴──────────────────┴───────────────┘
                         ↓
 ┌─────────────────────────────────────────────────────┐
@@ -272,7 +273,7 @@ graph TD
 **Retrieval Layer**
 - FAISS 벡터 검색
 - 멀티쿼리 생성
-- Jina AI 리랭킹
+- Voyage AI 리랭킹
 
 **Generation Layer**
 - 법률 전문 답변 생성
@@ -302,7 +303,7 @@ copyright_legal_advisor/
 │   ├── __init__.py
 │   └── settings.py                # 통합 설정 (Pydantic 기반)
 │       ├── OpenAIConfig           # OpenAI API 설정
-│       ├── JinaConfig             # Jina AI 설정
+│       ├── VoyageConfig           # Voyage AI 설정
 │       ├── ChunkingConfig         # 청킹 파라미터
 │       ├── RetrievalConfig        # 검색 설정
 │       ├── EvaluationConfig       # 평가 기준
@@ -311,7 +312,7 @@ copyright_legal_advisor/
 │
 ├── 📁 core/                        # RAG 핵심 컴포넌트
 │   ├── __init__.py
-│   ├── intent_analyzer.py         # GPT-4o 의도 분석
+│   ├── intent_analyzer.py         # 의도 분석 모듈
 │   │   ├── analyze_intent()       # 질문 의도 파악
 │   │   └── extract_key_concepts() # 핵심 개념 추출
 │   │
@@ -320,11 +321,11 @@ copyright_legal_advisor/
 │   │   ├── generate_multi_query() # 멀티쿼리 생성
 │   │   └── get_retry_k()          # 재시도별 k값
 │   │
-│   ├── reranker.py                # Jina AI 리랭킹
+│   ├── reranker.py                # Voyage AI 리랭킹
 │   │   ├── rerank()               # 검색 결과 재정렬
-│   │   └── call_jina_api()        # Jina API 호출
+│   │   └── call_voyage_api()      # Voyage API 호출
 │   │
-│   ├── generator.py               # GPT-4-turbo 답변 생성
+│   ├── generator.py               # 답변 생성 모듈
 │   │   ├── generate()             # 답변 생성
 │   │   └── format_context()       # 컨텍스트 포맷팅
 │   │
@@ -338,7 +339,7 @@ copyright_legal_advisor/
 │       ├── process()              # 질문 처리 메인 로직
 │       └── retry_loop()           # 재시도 루프
 │
-├── 📁 data_pipeline/               # 데이터 처리 파이프라인
+├── 📁 data_pipeline/              # 데이터 처리 파이프라인
 │   ├── __init__.py
 │   ├── preprocessor.py            # 판례 데이터 전처리
 │   │   ├── extract_ruling()       # 주문 추출
@@ -391,6 +392,7 @@ copyright_legal_advisor/
 ├── 📄 .env.example                # 환경변수 예시
 ├── 📄 requirements.txt            # Python 의존성
 ├── 📄 main.py                     # 메인 실행 파일
+├── 📄 build_vectorstore.py        # 데이터 청킹/임베딩/FAISS저장 빌드 파일 
 │
 └── 📄 README.md                   # 이 파일
     📄 README_MODEL.md             # 모델 로직 및 데이터 명세 
@@ -404,7 +406,7 @@ copyright_legal_advisor/
 
 **settings.py**의 주요 클래스:
 - `OpenAIConfig`: API 키, 모델 선택, temperature 설정
-- `JinaConfig`: 리랭커 설정 및 활성화 옵션
+- `VoyageConfig`: 리랭커 설정 및 활성화 옵션
 - `ChunkingConfig`: 문서 청킹 파라미터 (크기, 오버랩)
 - `RetrievalConfig`: 검색 개수, 재시도별 k값
 - `EvaluationConfig`: 평가 기준 점수 및 가중치
@@ -417,10 +419,10 @@ RAG 시스템의 핵심 기능을 구현한 모듈입니다.
 | 파일 | 주요 기능 |
 |------|-----------|
 | `pipeline.py` | 전체 RAG 프로세스 오케스트레이션 |
-| `intent_analyzer.py` | GPT-4-turbo로 질문 의도 분석 |
+| `intent_analyzer.py` | 질문 의도 분석 및 저작권법 관련성 판단 |
 | `retriever.py` | 동적 검색 및 멀티쿼리 생성 |
-| `reranker.py` | Jina AI를 사용한 결과 재정렬 |
-| `generator.py` | GPT-4-turbo로 답변 생성 |
+| `reranker.py` | Voyage 리랭커를 사용한 결과 재정렬 |
+| `generator.py` | 법률 전문 답변 생성 |
 | `evaluator.py` | RAGAS로 답변 품질 평가 |
 
 #### `data_pipeline/` - 데이터 처리
@@ -475,8 +477,8 @@ vim .env  # 또는 nano, code 등 사용
 
 **필수 설정:**
 ```env
-OPENAI_API_KEY=sk-your-openai-api-key
-JINA_API_KEY=jina_your-jina-api-key  # 리랭커 사용시
+OPENAI_API_KEY=your-openai-api-key
+VOYAGE_API_KEY=your-voyage-api-key  # 리랭커 사용시
 ```
 
 자세한 설정은 [README_ENV.md](./README_ENV.md) 참조
@@ -489,7 +491,7 @@ mkdir -p data/raw
 cp 판례데이터.xlsx data/raw/
 
 # 데이터 파이프라인 실행 (최초 1회만)
-python -m data_pipeline.pipeline data/raw/판례데이터.xlsx
+python build_vectorstore.py --case data/raw/판례데이터.xlsx
 ```
 
 **실행 결과:**
@@ -615,7 +617,7 @@ cat .env | grep OPENAI_API_KEY
 
 **A:** 데이터 파이프라인을 먼저 실행하세요
 ```bash
-python -m data_pipeline.pipeline data/raw/판례데이터.xlsx
+python build_vectorstore.py --case data/raw/판례데이터.xlsx
 ```
 
 ### Q3: 답변이 너무 느림
@@ -634,35 +636,6 @@ MAX_RETRY_COUNT=1
 # data_pipeline/vectorstore.py 수정
 batch_size=250  # 기본 500에서 250으로
 ```
-
----
-
-## 📈 성능 지표
-
-### 평가 메트릭 (RAGAS)
-
-| 메트릭 | 평균 점수 | 설명 |
-|--------|-----------|------|
-| **Faithfulness** | 0.85 | 답변이 참조 문서에 충실한 정도 |
-| **Relevancy** | 0.82 | 답변이 질문과 관련된 정도 |
-| **통과율** | 78% | 1회 시도로 통과하는 비율 |
-
-### 응답 시간
-
-| 구성 | 평균 시간 | 설명 |
-|------|-----------|------|
-| 의도 분석 | 0.5초 | GPT-4o 호출 |
-| 검색 + 리랭킹 | 1.2초 | FAISS + Jina |
-| 답변 생성 | 2.5초 | GPT-4-turbo |
-| 평가 | 1.0초 | RAGAS |
-| **총 (1회 시도)** | **5.2초** | - |
-
-### 재시도 통계
-
-- **0회 재시도**: 78% (1회 시도로 통과)
-- **1회 재시도**: 15% (2회 시도로 통과)
-- **2회 재시도**: 5% (3회 시도로 통과)
-- **Fallback 사용**: 2%
 
 ---
 

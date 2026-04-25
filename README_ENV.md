@@ -8,7 +8,7 @@
 - [빠른 시작](#-빠른-시작)
 - [필수 환경변수](#-필수-환경변수)
 - [OpenAI 설정](#-openai-설정)
-- [Jina AI 설정](#-jina-ai-설정)
+- [Voyage AI 설정](#-voyage-ai-설정)
 - [청킹 설정](#-청킹-설정)
 - [검색 설정](#-검색-설정)
 - [평가 설정](#-평가-설정)
@@ -31,7 +31,7 @@ cp .env.example .env
 
 ```env
 OPENAI_API_KEY=your-openai-api-key
-JINA_API_KEY=your-jina-api-key
+VOYAGE_API_KEY=your-voyage-api-key
 ```
 
 ### 3. 실행
@@ -58,10 +58,10 @@ streamlit run app.py
 
 ---
 
-### JINA_API_KEY
+### Voyage_API_KEY
 
-- 용도: Jina AI Reranker API 접근 키
-- 발급 방법: https://jina.ai > 로그인 > API Keys
+- 용도: Voyage AI Reranker API 접근 키
+- 발급 방법: https://www.voyageai.com/ > 로그인 > Create new secret key 
 - 리랭커 미사용 시 불필요:  
     ```env
     USE_RERANKER = false
@@ -86,14 +86,14 @@ MAX_TOKENS_MULTIQUERY=300       # 멀티쿼리 생성 최대 토큰
 
 ---
 
-## 🔍 Jina 리랭커 설정
+## 🔍 Voyage 리랭커 설정
 
 리랭커는 검색된 문서를 "질문 관련도 기준"으로 재정렬해 답변 품질을 크게 향상시킵니다. 
 
 ```env
-JINA_RERANKER_MODEL=jina-reranker-v2-base-multilingual  # 한국어 지원 리랭커
-USE_RERANKER=TRUE                                       # 리랭커 활성화 여부
-JINA_TOP_K=5                                          # 리랭킹 후 선택 문서 수
+VOYAGE_RERANKER_MODEL=rerank-2.5             # 한국어 지원 리랭커
+USE_RERANKER=TRUE                            # 리랭커 활성화 여부
+VOYAGE_TOP_K=5                                 # 리랭킹 후 선택 문서 수
 ```
 
 ---
@@ -170,11 +170,7 @@ RETRY_ON_EMPTY=true     # 빈 결과 시 재시도 활성화
 ```
 
 **통계**:
-| 재시도 | 누적 통과율 |
-|--------|-------------|
-| 1회 | 78% |
-| 2회 | 93% |
-| 3회 | 98% |
+재시도 및 누적 통과율 측정 예정
 
 
 ---
@@ -186,7 +182,7 @@ RETRY_ON_EMPTY=true     # 빈 결과 시 재시도 활성화
 ```env
 # API 키
 OPENAI_API_KEY=your-openai-api-key
-JINA_API_KEY=your-jina-api-key
+VOYAGE_API_KEY=your-voyage-api-key
 
 # 빠른 응답 (비용 절감)
 LLM_MODEL=gpt-3.5-turbo
@@ -206,7 +202,7 @@ LOG_LEVEL=DEBUG
 ```env
 # API 키
 OPENAI_API_KEY=your-openai-api-key
-JINA_API_KEY=your-jina-api-key
+VOYAGE_API_KEY=your-voyage-api-key
 
 # 고품질 답변
 LLM_MODEL=gpt-4-turbo
@@ -231,7 +227,7 @@ LOG_LEVEL=INFO
 ```env
 # API 키
 OPENAI_API_KEY=your-openai-api-key
-JINA_API_KEY=your-jina-api-key
+VOYAGE_API_KEY=your-voyage-api-key
 
 # 안정적 답변
 LLM_MODEL=gpt-4-turbo
@@ -281,12 +277,12 @@ echo "OPENAI_API_KEY=your-openai-api-key" >> .env
 
 ---
 
-### Q2: `"JINA_API_KEY required"` 
+### Q2: `"VOYAGE_API_KEY required"` 
 
 
 ```env
 # 키 추가
-JINA_API_KEY=your-jina-api-key
+VOYAGE_API_KEY=your-voyage-api-key
 
 # 또는 리랭커 비활성화
 USE_RERANKER=false
@@ -325,13 +321,6 @@ USE_RERANKER=false
 # 재시도 감소
 MAX_RETRY_COUNT=1
 ```
-
-**예상 절감**:
-| 변경 전 | 변경 후 |
-|---------|---------|
-| $0.03/질문 | $0.005/질문 |
-| 월 1,000회 → $30 | 월 1,000회 → $5 |
-
 ---
 
 ### Q5: 평가가 너무 엄격함 (재시도 과다)

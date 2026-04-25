@@ -7,7 +7,7 @@ from .intent_analyzer import IntentAnalyzer, IntentResult
 from .retriever import LegalRetriever
 from .generator import AnswerGenerator
 from .evaluator import RAGASEvaluator, EvaluationResult
-from .reranker import JinaReranker
+from .reranker import VoyageReranker
 
 __all__ = [
     'LegalRAGPipeline',
@@ -17,5 +17,5 @@ __all__ = [
     'AnswerGenerator',
     'RAGASEvaluator',
     'EvaluationResult',
-    'JinaReranker',
+    'VoyageReranker',
 ]

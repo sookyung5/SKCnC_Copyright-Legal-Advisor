@@ -10,7 +10,7 @@ from langchain.prompts import PromptTemplate
 
 from config import settings
 from utils import log
-from .reranker import JinaReranker
+from .reranker import VoyageReranker
 
 
 class MultiQueryGenerator:
@@ -92,7 +92,7 @@ class LegalRetriever:
         self.use_reranker = use_reranker
         
         if use_reranker:
-            self.reranker = JinaReranker()
+            self.reranker = VoyageReranker()
         
         log.info(f"검색기 초기화 완료 (리랭커: {use_reranker})")
     

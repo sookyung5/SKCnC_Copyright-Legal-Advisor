@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 설정 관리 모듈
-환경 변수를 통한 안전한 설정 관리 (재시도 로직 + Jina Reranker 포함)
+환경 변수를 통한 안전한 설정 관리 (재시도 로직 + Voyage Reranker 포함)
 """
 import os
 from pathlib import Path
@@ -29,26 +29,16 @@ class OpenAIConfig(BaseModel):
     max_tokens_evaluation: int = Field(default=1000, description="평가 최대 토큰")
     max_tokens_multiquery: int = Field(default=300, description="멀티쿼리 생성 최대 토큰")
 
-class JinaConfig(BaseModel):
-    """Jina AI 설정"""
-    api_key: str = Field(..., description="Jina AI API 키")
-    reranker_model: str = Field(default="jina-reranker-v2-base-multilingual")
+class VoyageConfig(BaseModel):
+    """Voyage AI 설정"""
+    api_key: str = Field(..., description="Voyage AI API 키")
+    reranker_model: str = Field(default="rerank-2.5")
     top_k: int = Field(default=5, gt=0, description="리랭킹 후 상위 k개")
 
 
 class ChunkingConfig(BaseModel):
     """청킹 설정"""
     # 판례 청킹
-    case_chunk_size: int = Field(default=600, gt=0)
-    case_chunk_overlap: int = Field(default=150, ge=0)
-    case_min_chunk_size: int = Field(default=300, gt=0)
-    
-    # 법령 청킹
-    law_chunk_size: int = Field(default=500, gt=0)
-    law_chunk_overlap: int = Field(default=125, ge=0)
-    law_min_chunk_size: int = Field(default=250, gt=0)
-    
-    # 구분자
     case_separators: List[str] = Field(default=[
         "\n\n", ".\n", ". ",
         "【이유】", "【주문】",
@@ -56,11 +46,63 @@ class ChunkingConfig(BaseModel):
         "\n가. ", "\n나. ", "\n다. ", "\n라. ",
         ") ", ", ", " "
     ])
+    case_chunk_size: int = Field(default=500, gt=0)
+    case_chunk_overlap: int = Field(default=100, ge=0)
+    case_min_chunk_size: int = Field(default=300, gt=0)
     
-    law_separators: List[str] = Field(default=[
-        "\n   ", "\n     ", "\n",
-        ". ", ", ", " ", ""
-    ])
+    # 법령 청킹
+    law_separators: List[str] = Field(
+        default=[
+            "\n   ",    # 호 단위
+            "\n     ",  # 목 단위
+            "\n",       # 줄바꿈
+            ". ",       # 문장
+            ", ",       # 구절
+            " ",        # 단어
+            ""          # 문자
+        ],
+        desc="법령 청킹 구분자 (조문 통합 후 사용)"
+    )
+    law_chunk_size: int = Field(default=500, gt=0)
+    law_chunk_overlap: int = Field(default=125, ge=0)
+    law_min_chunk_size: int = Field(default=250, gt=0)
+    
+    # 부칙 청킹
+    addendum_separators: List[str] = Field(
+        default=[
+            "\n  ",     # 항 시작
+            "\n    ",   # 호 시작
+            "\n",       # 줄바꿈
+            ". ",       # 문장
+            ", ",       # 구절
+            " ",        # 단어
+            ""          # 문자
+        ],
+        desc="부칙 청킹 구분자 (조문 통합 후 사용)"
+    )
+    addendum_chunk_size: int = Field(default=500, gt=0)
+    addendum_chunk_overlap: int = Field(default=100, ge=0)
+    addendum_min_chunk_size: int = Field(default=100, gt=0)
+
+    # 시행령 청킹
+    enforcement_separators: List[str] = Field(
+        default=[
+            "\n   ",    # 호 단위
+            "\n     ",  # 목 단위
+            "\n",       # 줄바꿈
+            ". ",       # 문장
+            ", ",       # 구절
+            " ",        # 단어
+            ""          # 문자
+        ],
+        desc="시행령 청킹 구분자 (조문 통합 후 사용)"
+    )
+    enforcement_chunk_size: int = Field(default=500, gt=0)
+    enforcement_chunk_overlap: int = Field(default=100, ge=0)
+    enforcement_min_chunk_size: int = Field(default=100, gt=0)
+
+    # 공통 설정
+    min_chunk_size: int = Field(default=100, gt=0)
 
 
 class RetrievalConfig(BaseModel):
@@ -150,12 +192,12 @@ class Settings:
             max_tokens_multiquery=int(os.getenv("MAX_TOKENS_MULTIQUERY", "300"))
         )
         
-        # Jina 리랭커 설정
-        self.jina = JinaConfig(
-            api_key=os.getenv("JINA_API_KEY", ""),
-            reranker_model=os.getenv("JINA_RERANKER_MODEL", 
-                                    "jina-reranker-v2-base-multilingual"),
-            top_k=int(os.getenv("JINA_TOP_K", "5"))
+        # Voyage 리랭커 설정
+        self.voyage = VoyageConfig(
+            api_key=os.getenv("VOYAGE_API_KEY", ""),
+            reranker_model=os.getenv("VOYAGE_RERANKER_MODEL", 
+                                    "rerank-2.5"),
+            top_k=int(os.getenv("VOYAGE_TOP_K", "5"))
         )
     
 
@@ -217,9 +259,9 @@ class Settings:
                 ".env 파일을 확인하세요."
             )
         
-        if self.retrieval.use_reranker and not self.jina.api_key:
+        if self.retrieval.use_reranker and not self.voyage.api_key:
             raise ValueError(
-                "리랭커 사용이 활성화되었으나 JINA_API_KEY가 설정되지 않았습니다. "
+                "리랭커 사용이 활성화되었으나 VOYAGE_API_KEY가 설정되지 않았습니다. "
                 ".env 파일을 확인하거나 USE_RERANKER=false로 설정하세요."
             )
     

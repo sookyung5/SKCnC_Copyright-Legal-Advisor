@@ -18,8 +18,8 @@ pandas==2.1.4
 openpyxl==3.1.2
 python-dotenv==1.0.0
 
-# HTTP 요청 (Jina Reranker)
-requests==2.31.0
+# 리랭커
+voyageai>=0.3.0
 
 # 설정 관리
 pydantic==2.5.3
