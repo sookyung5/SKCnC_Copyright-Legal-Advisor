@@ -187,7 +187,7 @@ class LegalRAGPipeline:
 
                 return RAGResult(
                     query=query,
-                    answer=answer
+                    answer=answer,
                     source_documents=original_docs,
                     reranked_documents=reranked_docs,
                     evaluation=evaluation,
@@ -206,7 +206,7 @@ class LegalRAGPipeline:
         except Exception as e:
             log.error(
                 f"파이프라인 오류: {str(e)}",
-                exc_info=True
+                exc_info=True,
                 extra={"query": query} # 컨텍스트 정보 추가 
             )
             raise
