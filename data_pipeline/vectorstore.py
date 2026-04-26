@@ -3,6 +3,7 @@
 벡터스토어 생성 모듈
 FAISS 벡터스토어 생성 및 관리
 """
+import shutil
 from typing import List
 from pathlib import Path
 from tqdm import tqdm
@@ -26,70 +27,68 @@ def _get_embeddings_model() -> OpenAIEmbeddings:
         openai_api_key=settings.openai.api_key
     )
 
-def create_vectorstore_in_batches(
-    docs: List[Document],
-    batch_size: int = 500
-) -> FAISS:
-    """
-    배치 단위로 벡터스토어 생성
-    
-    Args:
-        docs: Document 리스트
-        batch_size: 배치 크기
-        
-    Returns:
-        FAISS 벡터스토어
-    
-    Raises:
-        ValueError: 문서가 비어있을 때
-        Exception: 벡터스토어 생성 실패
-    """
+
+def create_vectorstore_in_batches(docs: List[Document], batch_size: int = 500) -> FAISS:
+
+    CHECKPOINT_DIR = Path(settings.paths.vectorstore_path).parent / "checkpoints"
 
     if not docs:
         log.error("문서가 비어있습니다")
         raise ValueError("문서 리스트가 비어있습니다")
 
+    CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+    embeddings_model = _get_embeddings_model()
+
     log.info(f"벡터스토어 생성 시작: 총 {len(docs)}개 문서")
     log.info(f"배치 크기: {batch_size}개")
-    
-    try:
-        # 임베딩 모델 초기화
-        embeddings_model = _get_embeddings_model()
-        
-        # 첫 번째 배치로 초기화
-        first_batch_size = min(batch_size, len(docs))
-        vectorstore = FAISS.from_documents(
-            docs[:first_batch_size],
-            embeddings_model,
-            distance_strategy=DistanceStrategy.COSINE
-        )
-        log.info(f"초기 벡터스토어 생성 완료: {first_batch_size}개 문서")
-        
-        # 나머지 배치 추가
-        if len(docs) > batch_size:
-            total_batches = (len(docs) - batch_size + batch_size - 1) // batch_size
 
-            for batch_idx in tqdm(
-                range(batch_size, len(docs), batch_size),
-                desc="벡터스토어 배치 추가",
-                total=total_batches
-            ):
-                batch_end = min(batch_idx + batch_size, len(docs))
-                batch = docs[batch_idx:batch_end]
+    # 체크포인트 재개 확인
+    checkpoint_path = CHECKPOINT_DIR / "latest"
+    start_idx = 0
+    vectorstore = None
 
+    if checkpoint_path.exists():
+        try:
+            log.info("기존 체크포인트 발견 — 이어서 시작")
+            vectorstore = FAISS.load_local(
+                str(checkpoint_path),
+                embeddings_model,
+                allow_dangerous_deserialization=True
+            )
+            start_idx = vectorstore.index.ntotal
+            log.info(f"체크포인트 로드 완료: {start_idx}개 벡터 복원")
+        except Exception as e:
+            log.warning(f"체크포인트 로드 실패, 처음부터 시작: {str(e)}")
+            start_idx = 0
+            vectorstore = None
+
+    # 배치 처리
+    batches = list(range(start_idx, len(docs), batch_size))
+    for batch_idx in tqdm(batches, desc="벡터스토어 배치 추가"):
+        batch = docs[batch_idx:batch_idx + batch_size]
+
+        try:
+            if vectorstore is None:
+                vectorstore = FAISS.from_documents(
+                    batch, embeddings_model,
+                    distance_strategy=DistanceStrategy.COSINE
+                )
+            else:
                 vectorstore.add_documents(batch)
-                
-                log.debug(f"진행률: {batch_end}/{len(docs)}")
 
-        log.info("벡터스토어 생성 완료")
-        return vectorstore
-    except Exception as e:
-        log.error(
-            f"벡터스토어 생성 오류: {str(e)}",
-            exc_info=True,
-            extra={"doc_count": len(docs)}
-        )
-        raise
+            # 배치마다 체크포인트 저장
+            vectorstore.save_local(str(checkpoint_path))
+            log.debug(f"진행률: {min(batch_idx + batch_size, len(docs))}/{len(docs)}")
+
+        except Exception as e:
+            log.exception(f"배치 오류 (idx {batch_idx}): {str(e)}")
+            log.warning("체크포인트까지의 진행상황은 보존됩니다. 재실행 시 이어서 진행됩니다.")
+            raise
+
+    # 완료 후 체크포인트 정리
+    shutil.rmtree(CHECKPOINT_DIR, ignore_errors=True)
+    log.info("벡터스토어 생성 완료")
+    return vectorstore
 
 def save_vectorstore(vectorstore: FAISS, save_path: str = None):
     """
@@ -114,11 +113,8 @@ def save_vectorstore(vectorstore: FAISS, save_path: str = None):
         log.info(f"벡터 수: {vectorstore.index.ntotal}")
     
     except Exception as e:
-        log.error(
-            f"벡터스토어 저장 오류: {str(e)}",
-            exc_info=True,
-            extra={"save_path": save_path}
-        )
+        log.exception(
+            f"벡터스토어 저장 오류: {str(e)} (save_path: {save_path})")
         raise
 
 
@@ -149,8 +145,7 @@ def load_vectorstore(load_path: str = None) -> FAISS:
         
         vectorstore = FAISS.load_local(
             load_path,
-            embeddings_model,
-            allow_dangerous_deserialization=True
+            embeddings_model
         )
         
         log.info(f"벡터스토어 로드 완료: {load_path}")
@@ -161,9 +156,6 @@ def load_vectorstore(load_path: str = None) -> FAISS:
     except FileNotFoundError:
         raise
     except Exception as e:
-        log.error(
-            f"벡터스토어 로드 오류: {str(e)}",
-            exc_info=True,
-            extra={"load_path": load_path}
-        )
+        log.exception(
+            f"벡터스토어 로드 오류: {str(e)} (load_path: {load_path})")
         raise
