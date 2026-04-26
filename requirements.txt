@@ -29,4 +29,4 @@ streamlit==1.29.0
 
 # 유틸리티
 tqdm==4.66.1
-logru==0.7.3
+loguru==0.7.3
