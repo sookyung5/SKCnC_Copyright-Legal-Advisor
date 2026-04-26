@@ -183,7 +183,7 @@ def chunk_case_documents(df: pd.DataFrame) -> List[Document]:
         # 빈 청크 제거
             chunks = [c.strip() for c in chunks if c.strip()]
         except Exception as e:
-            log.error(f"{doc_id} 청킹 오류: {str(e)}", exc_info=True)
+            log.exception(f"{doc_id} 청킹 오류: {str(e)}")
             continue
         
         # 메타데이터 구성
@@ -333,7 +333,7 @@ def _create_law_article_documents(df: pd.DataFrame) -> List[Document]:
             ho_num = clean_text(getattr(row, '호번호', ''))
             ho_content = clean_text(getattr(row, '호내용', ''))
             if ho_num:
-                included_hos.append(ho_num)
+                included_hos.add(ho_num)
 
             if ho_content:
                 if ho_num:
@@ -440,10 +440,8 @@ def _adaptive_chunking_law(article_docs: List[Document]) -> List[Document]:
                 chunked_count += 1
                 
             except Exception as e:
-                log.error(
-                    f"청킹 오류 (조문 {article_num}): {str(e)}",
-                    exc_info=True
-                )
+                log.exception(
+                    f"청킹 오류 (조문 {article_num}): {str(e)}")
                 doc.metadata['doc_id'] = f"law_{len(final_docs)+1}"
                 final_docs.append(doc)
     
@@ -664,10 +662,8 @@ def _adaptive_chunking_addendum(article_docs: List[Document]) -> List[Document]:
                 chunked_count += 1
                 
             except Exception as e:
-                log.error(
-                    f"부칙 청킹 오류 (조문 {article_num}): {str(e)}",
-                    exc_info=True
-                )
+                log.exception(
+                    f"부칙 청킹 오류 (조문 {article_num}): {str(e)}")
                 doc.metadata['doc_id'] = f"addendum_{len(final_docs)+1}"
                 final_docs.append(doc)
     
@@ -880,10 +876,8 @@ def _adaptive_chunking_enforcement(article_docs: List[Document]) -> List[Documen
                 chunked_count += 1
                 
             except Exception as e:
-                log.error(
-                    f"시행령 청킹 오류 (조문 {article_num}): {str(e)}",
-                    exc_info=True
-                )
+                log.exception(
+                    f"시행령 청킹 오류 (조문 {article_num}): {str(e)}")
                 doc.metadata['doc_id'] = f"enforcement_{len(final_docs)+1}"
                 final_docs.append(doc)
     
