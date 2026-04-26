@@ -3,6 +3,7 @@
 의도 분석 모듈
 질의 의도 분석 및 분류
 """
+import re
 from typing import Optional
 from dataclasses import dataclass
 from langchain_openai import ChatOpenAI
@@ -77,6 +78,16 @@ class IntentAnalyzer:
             prompt = self.prompt.format(query=query)
             response = self.llm.predict(prompt)
             
+            response = response.strip()
+            code_block_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response, re.DOTALL)
+            if code_block_match:
+                response = code_block_match.group(1)
+            else:
+                # 코드블록 없을 경우 중괄호 직접 추출
+                json_match = re.search(r'\{.*\}', response, re.DOTALL)
+                if json_match:
+                    response = json_match.group()
+
             # JSON 파싱 
             result = json.loads(response)
             
@@ -89,7 +100,7 @@ class IntentAnalyzer:
             )
         
         except Exception as e:
-            log.error(f"의도 분석 오류: {str(e)}")
+            log.exception(f"의도 분석 오류: {str(e)}")
             # 기본값 반환
             return IntentResult(
                 is_copyright_related=True,

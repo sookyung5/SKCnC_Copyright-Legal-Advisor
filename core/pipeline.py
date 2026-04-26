@@ -201,14 +201,10 @@ class LegalRAGPipeline:
                 return self._handle_no_results(query, intent, retry_num)
         
         except ValueError as e:
-            log.error(f"설정 오류: {str(e)}", exc_info=True)
+            log.exception(f"설정 오류: {str(e)}")
             raise
         except Exception as e:
-            log.error(
-                f"파이프라인 오류: {str(e)}",
-                exc_info=True,
-                extra={"query": query} # 컨텍스트 정보 추가 
-            )
+            log.exception(f"파이프라인 오류: {str(e)} (query: {query[:50]})")
             raise
     def _is_better_fallback(
         self,

@@ -3,7 +3,7 @@
 답변 생성 모듈
 LLM을 사용한 답변 생성
 """
-from curses import meta
+import re
 from typing import List
 from langchain.schema import Document
 from langchain_openai import ChatOpenAI
@@ -90,14 +90,9 @@ class AnswerGenerator:
         except ValueError:
             raise
         except Exception as e:
-            log.error(
-                f"답변 생성 오류: {str(e)}",
-                exc_info=True,  
-                extra={
-                    "query": query,
-                    "doc_count": len(documents)
-                }
-            )
+            log.exception(
+                f"답변 생성 오류: {str(e)} "
+                f"(query: {query[:50]}, doc_count: {len(documents)})")
             raise
 
 
@@ -142,10 +137,10 @@ class AnswerGenerator:
                     header += f" ({article_title})"
 
                 if included_hangs:
-                    header += f" 제{','.join(included_hangs)}항"
+                    header += f" 제{','.join(map(str, included_hangs))}항"
                 
                 if included_hos:
-                    header += f" {','.join(included_hos)}호"
+                    header += f" {','.join(map(str, included_hos))}호"
             
             elif doc_type in ['addendum', '부칙']:
                 # 부칙
@@ -161,10 +156,10 @@ class AnswerGenerator:
                     header += f" ({article_title})"
                 
                 if included_hangs:
-                    header += f" 제{','.join(included_hangs)}항"
+                    header += f" 제{','.join(map(str, included_hangs))}항"
                 
                 if included_hos:
-                    header += f" {','.join(included_hos)}호"
+                    header += f" {','.join(map(str, included_hos))}호"
                 
             elif doc_type in ['enforcement_decree', '시행령']:
                 # 시행령
@@ -178,10 +173,10 @@ class AnswerGenerator:
                     header += f" ({article_title})"
                 
                 if included_hangs:
-                    header += f" 제{','.join(included_hangs)}항"
+                    header += f" 제{','.join(map(str, included_hangs))}항"
                 
                 if included_hos:
-                    header += f" {','.join(included_hos)}호"
+                    header += f" {','.join(map(str, included_hos))}호"
                     
             else:
                 # 기타
@@ -209,13 +204,13 @@ class RelatedQuestionGenerator:
             input_variables=["query", "answer"],
             template="""다음 질문과 답변을 바탕으로 연관된 질문 3개를 생성하세요.
 
-질문: {query}
-답변: {answer}
+            질문: {query}
+            답변: {answer}
 
-연관 질문 3개:
-1. [첫 번째 질문]
-2. [두 번째 질문]
-3. [세 번째 질문]"""
+            반드시 아래 형식으로만 출력하세요. 다른 텍스트는 포함하지 마세요.
+            1. [첫 번째 질문]
+            2. [두 번째 질문]
+            3. [세 번째 질문]"""
         )
 
         log.info("연관 질문 생성기 초기화 완료")
@@ -239,17 +234,15 @@ class RelatedQuestionGenerator:
             questions = []
             for line in response.split('\n'):
                 line = line.strip()
-                if line and any(line.startswith(f"{i}.") for i in range(1, 4)):
-                    question_text = line.split('.', 1)[1].strip()
-                    questions.append(question_text)
+                match = re.match(r'^[1-3][.)]\s*(.+)', line)
+                if match:
+                    questions.append(match.group(1).strip())
             
             log.info(f"연관 질문 생성 완료: {len(questions)}개")
             return questions[:3]  # 최대 3개
 
             
         except Exception as e:
-            log.error(
-                f"연관 질문 생성 오류: {str(e)}",
-                exc_info=True)
-            
+            log.exception(
+                f"연관 질문 생성 오류: {str(e)}")
             return []
