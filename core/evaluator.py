@@ -116,13 +116,13 @@ class RAGASEvaluator:
             contexts = [doc.page_content for doc in documents]
             
             data = {
-                "user_input": [query],
-                "response": [answer],
-                "retrieved_contexts": [contexts]
+                "question": [query],
+                "answer": [answer],
+                "contexts": [contexts]
             }
             dataset = Dataset.from_dict(data)
             
-            evaluator_llm = LangchainLLMWrapper(self.llm)
+            evaluator_llm = self.llm
             
             result = evaluate(
                 dataset=dataset,
@@ -164,7 +164,7 @@ class RAGASEvaluator:
             )
         
         except Exception as e:
-            log.error(f"평가 오류: {str(e)}")
+            log.exception(f"평가 오류: {str(e)}")
             return EvaluationResult(
                 faithfulness_score=0.0,
                 relevancy_score=0.0,
