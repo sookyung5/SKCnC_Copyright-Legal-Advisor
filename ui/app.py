@@ -3,8 +3,13 @@
 Streamlit UI 애플리케이션
 법률자문 AI 웹 인터페이스
 """
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import streamlit as st
 from datetime import datetime
+
 
 from core.pipeline import LegalQAChain
 from utils import log
